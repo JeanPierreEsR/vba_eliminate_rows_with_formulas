@@ -1,60 +1,58 @@
-Attribute VB_Name = "EliminateFormulaRows"
 ' ============================================================
 '  EliminateFormulaRows.bas
-'  Deletes every row in the used range that contains at least
-'  one cell with a formula.
+'  Deletes every row that contains at least one formula cell
+'  within the currently selected range.
 '
 '  Usage:
-'    1. Open the VBA editor (Alt + F11).
-'    2. Insert > Module and paste this code, or import this .bas file.
-'    3. Run DeleteRowsWithFormulas from the Macros dialog (Alt + F8).
+'    1. Select the cells you want to inspect on the worksheet.
+'    2. Open the VBA editor (Alt + F11).
+'    3. Insert > Module and paste this code, or import this .bas file.
+'    4. Run DeleteRowsWithFormulas from the Macros dialog (Alt + F8).
 ' ============================================================
 
 Option Explicit
 
 ' ------------------------------------------------------------
 '  DeleteRowsWithFormulas
-'  Scans the active sheet's used range and deletes any row
-'  that contains one or more formula cells.
+'  Scans the current selection and deletes any row that
+'  contains one or more formula cells within that selection.
 '
 '  Parameters:
-'    ws  (optional) – target Worksheet; defaults to ActiveSheet.
+'    selRng (optional) – range to inspect; defaults to Selection.
 ' ------------------------------------------------------------
-Public Sub DeleteRowsWithFormulas(Optional ws As Worksheet = Nothing)
+Public Sub DeleteRowsWithFormulas(Optional selRng As Range = Nothing)
 
-    Dim targetSheet  As Worksheet
-    Dim usedRng      As Range
+    Dim scanRng      As Range
     Dim formulaCells As Range
     Dim formulaCell  As Range
     Dim rowsToDelete As Range
 
-    ' --- resolve target sheet -------------------------------------------
-    If ws Is Nothing Then
-        Set targetSheet = ActiveSheet
+    ' --- resolve the range to scan --------------------------------------
+    If selRng Is Nothing Then
+        If TypeName(Selection) <> "Range" Then
+            MsgBox "Please select a range of cells before running this macro.", _
+                   vbExclamation
+            Exit Sub
+        End If
+        Set scanRng = Selection
     Else
-        Set targetSheet = ws
+        Set scanRng = selRng
     End If
 
-    ' --- locate the used range ------------------------------------------
-    Set usedRng = targetSheet.UsedRange
-    If usedRng Is Nothing Then
-        MsgBox "The sheet is empty. Nothing to do.", vbInformation
-        Exit Sub
-    End If
-
-    ' --- find all cells that contain a formula --------------------------
+    ' --- find all formula cells within the selection --------------------
     On Error Resume Next
-    Set formulaCells = usedRng.SpecialCells(xlCellTypeFormulas)
+    Set formulaCells = scanRng.SpecialCells(xlCellTypeFormulas)
     On Error GoTo 0
 
     If formulaCells Is Nothing Then
-        MsgBox "No formula cells found. No rows were deleted.", vbInformation
+        MsgBox "No formula cells found in the selection. No rows were deleted.", _
+               vbInformation
         Exit Sub
     End If
 
     ' --- collect the unique rows that hold at least one formula cell ----
-    '     Walk the formula cells and union their entire rows so we can
-    '     delete them all in one shot (avoids row-index shifting issues).
+    '     Union the entire rows so all deletions happen in one call,
+    '     avoiding row-index shifting issues.
     For Each formulaCell In formulaCells
         If rowsToDelete Is Nothing Then
             Set rowsToDelete = formulaCell.EntireRow
@@ -63,20 +61,18 @@ Public Sub DeleteRowsWithFormulas(Optional ws As Worksheet = Nothing)
         End If
     Next formulaCell
 
-    ' --- confirm before deleting ----------------------------------------
+    ' --- count distinct rows --------------------------------------------
     Dim rowCount As Long
-    rowCount = 0
-
-    ' Count distinct rows in the union range
-    Dim area As Range
+    Dim area     As Range
     For Each area In rowsToDelete.Areas
         rowCount = rowCount + area.Rows.Count
     Next area
 
+    ' --- confirm before deleting ----------------------------------------
     Dim answer As VbMsgBoxResult
     answer = MsgBox( _
         "This will permanently delete " & rowCount & " row(s) on sheet """ & _
-        targetSheet.Name & """." & vbCrLf & vbCrLf & "Continue?", _
+        scanRng.Worksheet.Name & """." & vbCrLf & vbCrLf & "Continue?", _
         vbQuestion + vbYesNo + vbDefaultButton2, _
         "Delete rows with formulas")
 
@@ -98,32 +94,32 @@ End Sub
 '  Silent version – no confirmation dialog.  Useful when
 '  called from another macro or when you want no UI at all.
 '
+'  Parameters:
+'    selRng (optional) – range to inspect; defaults to Selection.
+'
 '  Returns the number of rows that were deleted.
 ' ------------------------------------------------------------
 Public Function DeleteRowsWithFormulas_NoPrompt( _
-        Optional ws As Worksheet = Nothing) As Long
+        Optional selRng As Range = Nothing) As Long
 
-    Dim targetSheet  As Worksheet
-    Dim usedRng      As Range
+    Dim scanRng      As Range
     Dim formulaCells As Range
     Dim formulaCell  As Range
     Dim rowsToDelete As Range
     Dim rowCount     As Long
 
-    If ws Is Nothing Then
-        Set targetSheet = ActiveSheet
+    If selRng Is Nothing Then
+        If TypeName(Selection) <> "Range" Then
+            DeleteRowsWithFormulas_NoPrompt = 0
+            Exit Function
+        End If
+        Set scanRng = Selection
     Else
-        Set targetSheet = ws
-    End If
-
-    Set usedRng = targetSheet.UsedRange
-    If usedRng Is Nothing Then
-        DeleteRowsWithFormulas_NoPrompt = 0
-        Exit Function
+        Set scanRng = selRng
     End If
 
     On Error Resume Next
-    Set formulaCells = usedRng.SpecialCells(xlCellTypeFormulas)
+    Set formulaCells = scanRng.SpecialCells(xlCellTypeFormulas)
     On Error GoTo 0
 
     If formulaCells Is Nothing Then
