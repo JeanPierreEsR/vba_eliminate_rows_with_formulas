@@ -1,4 +1,3 @@
-Attribute VB_Name = "EliminateFormulaRows"
 ' ============================================================
 '  EliminateFormulaRows.bas
 '  Deletes every row that contains at least one formula cell
