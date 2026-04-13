@@ -20,8 +20,9 @@ Option Explicit
 '  Parameters:
 '    selRng (optional) – range to inspect; defaults to Selection.
 ' ------------------------------------------------------------
-Public Sub DeleteRowsWithFormulas(Optional selRng As Range = Nothing)
+Public Sub DeleteRowsWithFormulas()
 
+    Dim selRng       As Range
     Dim scanRng      As Range
     Dim formulaCells As Range
     Dim formulaCell  As Range
